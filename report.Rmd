@@ -1,0 +1,88 @@
+Practical Machine Learning Assignment
+========================================================
+
+The data consists of a set of readings from sensors attached to subjects performing a variety of exercises. The task is to build a model which will correctly classify activities, given unlabelled sets of readings.
+
+Load the [Caret](http://caret.r-forge.r-project.org/) library and set the random number generator's seed, to ensure reproducibility:
+
+```{r setup, message=FALSE}
+library(caret)
+set.seed(1234)
+```
+
+## Reading and Cleaning the Data
+Read the data, inserting NAs from the string "NA" and empty fields; trim whitespace in other fields so R treats them correctly as numeric.
+
+```{r read}
+rawData <- read.csv("pml-training.csv", na.strings=c("NA",""), strip.white=T)
+dim(rawData)
+```
+
+The data frame returned by reading the file has nearly 20,000 rows and 160 columns so ruthlessly discard any column with an NA, as well as metadata and time-related ones.
+
+```{r clean}
+isNA <- apply(rawData, 2, function(x) { sum(is.na(x)) })
+validData <- subset(rawData[, which(isNA == 0)], 
+                    select=-c(X, user_name, new_window, num_window, raw_timestamp_part_1, raw_timestamp_part_2, cvtd_timestamp))
+dim(validData)
+```
+
+OK, so we've got rid of 2/3s of the columns. Let's partition the data into training and test sets. (The *classe* column is the outcome --- the dataset was from [Brazil](http://groupware.les.inf.puc-rio.br/har).)
+
+```{r partition}
+inTrain <- createDataPartition(validData$classe, p=0.7, list=F)
+training <- validData[inTrain,]
+testing <- validData[-inTrain,]
+```
+
+## Training a Random Forest Model
+
+Now train a [Random Forest](https://en.wikipedia.org/wiki/Random_forest) model on the training set. (Using this particular combination of *trControl* parameters is important, as by default bootstrapping is used, which is very time-intensive.)
+
+```{r train, cache=TRUE, message=FALSE}
+ctrl <- trainControl(allowParallel=T, method="cv", number=4)
+model <- train(classe ~ ., data=training, model="rf", trControl=ctrl)
+```
+
+Check the predictions against the held-back test-set.
+
+```{r predict-test}
+pred <- predict(model, newdata=testing)
+sum(pred == testing$classe) / length(pred)
+confusionMatrix(testing$classe, pred)$table
+```
+
+So our trained model is 99.4% accurate against our test-set and this is confirmed by the confusion matrix. Let's use this super-accurate model to predict the unknown labels.
+
+```{r predict-unknown}
+rawTestData <- read.csv("pml-testing.csv", na.strings=c("NA",""), strip.white=T)
+validTestData <- subset(rawTestData[, which(isNA == 0)], 
+                        select=-c(X, user_name, new_window, num_window, raw_timestamp_part_1, raw_timestamp_part_2, cvtd_timestamp))
+predict(model, newdata=validTestData)
+```
+
+Which variables are most important in this model?
+
+```{r variables}
+varImp(model)
+```
+
+## Training a smaller Random Forest Model
+
+Let's train and test a simpler model using only the top-ten most-important variables.
+
+```{r smaller-model, cache=TRUE, message=FALSE}
+smallValidData <- subset(validData, 
+                    select=c(roll_belt, pitch_forearm, yaw_belt, magnet_dumbbell_y, pitch_belt, magnet_dumbbell_z, roll_forearm, accel_dumbbell_y, roll_dumbbell, magnet_dumbbell_x,classe))
+smallModel <- train(classe ~ ., data=smallValidData[inTrain,], model="rf", trControl=ctrl)
+predict(smallModel, newdata=validTestData)
+```
+
+This is 5x faster and gets the same (correct) answer. Its accuracy on the test set is 98.5%.
+
+```{r smaller-model-accuracy}
+smallPred <- predict(smallModel, newdata=testing)
+sum(smallPred == testing$classe) / length(smallPred)
+confusionMatrix(testing$classe, smallPred)$table
+```
+
