@@ -46,7 +46,7 @@ model <- train(classe ~ ., data=training, model="rf", trControl=ctrl)
 
 Check the predictions against the held-back test-set.
 
-```{r predict-test}
+```{r predict-test, cache=TRUE, message=FALSE}
 pred <- predict(model, newdata=testing)
 sum(pred == testing$classe) / length(pred)
 confusionMatrix(testing$classe, pred)$table
@@ -69,7 +69,7 @@ varImp(model)
 
 ## Training a smaller Random Forest Model
 
-Let's train and test a simpler model using only the top-ten most-important variables.
+Let's train and test a simpler model using only the top-ten most-important predictors.
 
 ```{r smaller-model, cache=TRUE, message=FALSE}
 smallValidData <- subset(validData, 
