@@ -42,12 +42,12 @@ Now train a [Random Forest](https://en.wikipedia.org/wiki/Random_forest) model o
 ```{r train, cache=TRUE, message=FALSE}
 ctrl <- trainControl(allowParallel=T, method="cv", number=4)
 model <- train(classe ~ ., data=training, model="rf", trControl=ctrl)
+pred <- predict(model, newdata=testing)
 ```
 
 Check the predictions against the held-back test-set.
 
-```{r predict-test, cache=TRUE, message=FALSE}
-pred <- predict(model, newdata=testing)
+```{r predict-test}
 sum(pred == testing$classe) / length(pred)
 confusionMatrix(testing$classe, pred)$table
 ```
@@ -75,14 +75,26 @@ Let's train and test a simpler model using only the top-ten most-important predi
 smallValidData <- subset(validData, 
                     select=c(roll_belt, pitch_forearm, yaw_belt, magnet_dumbbell_y, pitch_belt, magnet_dumbbell_z, roll_forearm, accel_dumbbell_y, roll_dumbbell, magnet_dumbbell_x,classe))
 smallModel <- train(classe ~ ., data=smallValidData[inTrain,], model="rf", trControl=ctrl)
-predict(smallModel, newdata=validTestData)
 ```
 
 This is 5x faster and gets the same (correct) answer. Its accuracy on the test set is 98.5%.
 
 ```{r smaller-model-accuracy}
+predict(smallModel, newdata=validTestData)
 smallPred <- predict(smallModel, newdata=testing)
 sum(smallPred == testing$classe) / length(smallPred)
 confusionMatrix(testing$classe, smallPred)$table
 ```
 
+## Training a Support Vector Machine
+
+Just for the hell of it, let's train an SVM on the top-ten predictors.
+
+```{r svm-model, cache=TRUE}
+svm <- train(classe ~ ., data=smallValidData[inTrain,], model="svm", trControl=ctrl)
+svmPred <- predict(svm, newdata=testing)
+sum(svmPred == testing$classe) / length(svmPred)
+confusionMatrix(testing$classe, svmPred)$table
+```
+
+It also scores 98.4% accuracy and its confusion matrix is only slightly less accurate than the simpler Random Forest model's.

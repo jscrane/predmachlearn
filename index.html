@@ -224,12 +224,12 @@ testing &lt;- validData[-inTrain,]
 
 <pre><code class="r">ctrl &lt;- trainControl(allowParallel=T, method=&quot;cv&quot;, number=4)
 model &lt;- train(classe ~ ., data=training, model=&quot;rf&quot;, trControl=ctrl)
+pred &lt;- predict(model, newdata=testing)
 </code></pre>
 
 <p>Check the predictions against the held-back test-set.</p>
 
-<pre><code class="r">pred &lt;- predict(model, newdata=testing)
-sum(pred == testing$classe) / length(pred)
+<pre><code class="r">sum(pred == testing$classe) / length(pred)
 </code></pre>
 
 <pre><code>## [1] 0.9942
@@ -303,14 +303,16 @@ predict(model, newdata=validTestData)
 <pre><code class="r">smallValidData &lt;- subset(validData, 
                     select=c(roll_belt, pitch_forearm, yaw_belt, magnet_dumbbell_y, pitch_belt, magnet_dumbbell_z, roll_forearm, accel_dumbbell_y, roll_dumbbell, magnet_dumbbell_x,classe))
 smallModel &lt;- train(classe ~ ., data=smallValidData[inTrain,], model=&quot;rf&quot;, trControl=ctrl)
-predict(smallModel, newdata=validTestData)
+</code></pre>
+
+<p>This is 5x faster and gets the same (correct) answer. Its accuracy on the test set is 98.5%.</p>
+
+<pre><code class="r">predict(smallModel, newdata=validTestData)
 </code></pre>
 
 <pre><code>##  [1] B A B A A E D B A A B C B A E E A B B B
 ## Levels: A B C D E
 </code></pre>
-
-<p>This is 5x faster and gets the same (correct) answer. Its accuracy on the test set is 98.5%.</p>
 
 <pre><code class="r">smallPred &lt;- predict(smallModel, newdata=testing)
 sum(smallPred == testing$classe) / length(smallPred)
@@ -330,6 +332,32 @@ sum(smallPred == testing$classe) / length(smallPred)
 ##          D    0    1    3  959    1
 ##          E    0    8    6    4 1064
 </code></pre>
+
+<h2>Training a Support Vector Machine</h2>
+
+<p>Just for the hell of it, let&#39;s train an SVM on the top-ten predictors.</p>
+
+<pre><code class="r">svm &lt;- train(classe ~ ., data=smallValidData[inTrain,], model=&quot;svm&quot;, trControl=ctrl)
+svmPred &lt;- predict(svm, newdata=testing)
+sum(svmPred == testing$classe) / length(svmPred)
+</code></pre>
+
+<pre><code>## [1] 0.9844
+</code></pre>
+
+<pre><code class="r">confusionMatrix(testing$classe, svmPred)$table
+</code></pre>
+
+<pre><code>##           Reference
+## Prediction    A    B    C    D    E
+##          A 1663    4    5    2    0
+##          B   16 1099   13    9    2
+##          C    1   10 1009    6    0
+##          D    0    1    3  959    1
+##          E    0   10    6    3 1063
+</code></pre>
+
+<p>It also scores 98.4% accuracy and its confusion matrix is only slightly less accurate than the simpler Random Forest model&#39;s.</p>
 
 </body>
 
